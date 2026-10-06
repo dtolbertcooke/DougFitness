@@ -2,9 +2,11 @@ node_modules
 dist
 .env
 .expo
+.vitest
 .terraform
 *.tfstate*
 BUILD_PLAN.md
+BUILD_PLAN-JAVA.md
 CLAUDE.md
 program_example.ts
 v0-retrospective_UPDATE_ME.md
