@@ -1,7 +1,10 @@
 // api/src/modules/me/me.service.ts
 import argon2 from 'argon2';
+import mongoose from 'mongoose';
 import { AppError } from '../../middleware/errors';
 import { User } from '../auth/user.model';
+import { ProgramState } from '../program/programState.model';
+import { WorkoutSession } from '../sessions/session.model';
 import type { ChangePasswordSchema, PatchMeSchema } from './me.schemas';
 import type { z } from 'zod';
 
@@ -22,7 +25,12 @@ export async function changePassword(userId: string, input: z.infer<typeof Chang
   await user.save();
 }
 
+// Removes the account and everything it owns in one transaction, so a failure can't leave orphaned
+// sessions or program state behind.
 export async function deleteMe(userId: string) {
-  // No sessions to cascade yet; Phase 2 adds WorkoutSession.deleteMany({ userId }) here.
-  await User.findByIdAndDelete(userId).orFail(new AppError(404, 'Not found'));
+  await mongoose.connection.transaction(async (tx) => {
+    await User.findByIdAndDelete(userId).session(tx).orFail(new AppError(404, 'Not found'));
+    await WorkoutSession.deleteMany({ userId }).session(tx);
+    await ProgramState.deleteMany({ userId }).session(tx);
+  });
 }
