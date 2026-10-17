@@ -7,9 +7,6 @@
 //                and reset to the bottom. weightStep null = nothing to add (bodyweight), so it stays at the top
 //   progressive  bodyweight or timed work: add `step` reps or seconds per success
 //   none         cardio: logged, never progressed
-//
-// Values marked `confirm` are placeholders where your notes didn't give a number. Set them to match
-// your gym's equipment and how you actually progress.
 
 import type { Day } from "./progression";
 
