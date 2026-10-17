@@ -2,7 +2,7 @@
 
 ## Status
 
-- IN PROGRESS - Phase 1
+- IN PROGRESS - Phase 2
 
 ## About
 

@@ -15,7 +15,7 @@ export function buildApp() {
   app.use(pinoHttp({ logger, redact: ['req.headers.authorization'] }));
 
   app.get('/healthz', (_req, res) => res.json({ status: 'ok' }));
-  app.use('/v1/auth', authRouter);
+  app.use('/v1/auth', authRouter); // signup/signin
   app.use('/v1/me', requireAuth, meRouter);
 
   app.use(notFound);
