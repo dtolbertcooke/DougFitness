@@ -47,11 +47,15 @@ describe('seedDemo', () => {
     REPLAY_TIMEOUT,
   );
 
-  it('is idempotent', async () => {
-    await seedDemo({ weeks: 2, now: NOW });
-    const again = await seedDemo({ weeks: 2, now: NOW });
-    expect(again.created).toBe(false);
-    expect(await WorkoutSession.countDocuments({})).toBe(14);
-    expect(await User.countDocuments({ email: DEMO_EMAIL })).toBe(1);
-  });
+  it(
+    'is idempotent',
+    async () => {
+      await seedDemo({ weeks: 2, now: NOW });
+      const again = await seedDemo({ weeks: 2, now: NOW });
+      expect(again.created).toBe(false);
+      expect(await WorkoutSession.countDocuments({})).toBe(14);
+      expect(await User.countDocuments({ email: DEMO_EMAIL })).toBe(1);
+    },
+    REPLAY_TIMEOUT,
+  );
 });
