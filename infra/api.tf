@@ -110,7 +110,10 @@ resource "aws_lambda_function" "api" {
   depends_on = [aws_cloudwatch_log_group.api, aws_iam_role_policy_attachment.api_logs, aws_ecr_repository_policy.lambda_pull]
 
   lifecycle {
-    ignore_changes = [image_uri] # CI deploys images; Terraform owns everything else
+    ignore_changes = [
+      image_uri,   # CI deploys images; Terraform owns everything else
+      description, # the runbook forces fresh instances by rewriting this field, so it must not show as drift
+    ]
   }
 }
 
