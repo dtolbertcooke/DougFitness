@@ -5,11 +5,21 @@ import { User } from '../src/modules/auth/user.model';
 import { ProgramState } from '../src/modules/program/programState.model';
 import { slotProgress } from '../src/modules/progress/progress.service';
 import { WorkoutSession } from '../src/modules/sessions/session.model';
-import { DEMO_EMAIL, seedDemo } from '../src/scripts/seed';
+import { DEMO_EMAIL, assertSafeDatabase, seedDemo } from '../src/scripts/seed';
 import { slotOf } from './helpers';
 
 const NOW = new Date('2026-06-01T12:00:00Z');
 const REPLAY_TIMEOUT = 60_000; // 56 sessions = 56 transactions plus ~400 writes
+
+describe('assertSafeDatabase', () => {
+  it.each(['DougFitness-Dev', 'liftlog_dev', 'dougfitness_test', 'test'])('allows %s', (name) => {
+    expect(() => assertSafeDatabase(name)).not.toThrow();
+  });
+
+  it.each(['DougFitness', 'liftlog', 'production', 'admin', ''])('refuses %j', (name) => {
+    expect(() => assertSafeDatabase(name)).toThrow(/Refusing to seed/);
+  });
+});
 
 describe('seedDemo', () => {
   it(

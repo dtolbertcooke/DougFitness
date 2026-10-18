@@ -15,7 +15,15 @@ export const DEMO_EMAIL = 'demo@dougfitness.dev';
 export const DEMO_PASSWORD = 'demo-password-123';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const PROD_DB_NAME = 'liftlog'; // BUILD_PLAN.md: dev is liftlog_dev, prod is liftlog
+
+// An allow-list, not a deny-list: only a database whose name says dev or test can be seeded. A deny-list of
+// "the production name" fails the day someone names prod differently (here: dev is DougFitness-Dev, prod is
+// DougFitness).
+export function assertSafeDatabase(dbName: string) {
+  if (!/dev|test/i.test(dbName)) {
+    throw new Error(`Refusing to seed "${dbName}": only databases with "dev" or "test" in the name are seeded`);
+  }
+}
 
 // Deterministic, so the seeded history is the same every time:
 //  - a miss: the last set falls one short of the target (the lift repeats next week)
@@ -65,7 +73,7 @@ async function main() {
   await mongoose.connect(config.MONGODB_URI, { maxPoolSize: 5, serverSelectionTimeoutMS: 5000 });
   try {
     const dbName = mongoose.connection.name;
-    if (dbName === PROD_DB_NAME) throw new Error(`Refusing to seed the production database "${dbName}"`);
+    assertSafeDatabase(dbName);
     console.log(`Seeding database "${dbName}"...`);
     const result = await seedDemo();
     if (result.created) {

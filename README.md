@@ -51,8 +51,8 @@ program data itself for typos (unique slot ids, targets inside their ranges).
 
 `npm run seed` (from `api/`, needs `api/.env` pointing at a **dev** database) creates `demo@dougfitness.dev`
 and replays eight weeks of training through the real service functions, including a few misses and short
-sessions. It refuses to run with `NODE_ENV=production` or against the production database name, and does
-nothing if the demo user already exists.
+sessions. It refuses to run with `NODE_ENV=production` or against any database whose name doesn't contain
+"dev" or "test", and does nothing if the demo user already exists.
 
 ## 7-Phase Plan
 
