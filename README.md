@@ -2,11 +2,25 @@
 
 ## Status
 
-- IN PROGRESS - Phase 2
+- v0.1 backend is live (Phases 0-4 complete). Next: Phase 5, the Expo app.
 
 ## About
 
-- DougFitness: a MERN + AWS mobile app
+DougFitness is a workout tracker built around my own training program. You log each set, and the API calculates your next session’s weights and rep targets from progression rules I turned into code and tested with a decision table.
+
+Version 0.1 is the backend, and it’s live. It’s TypeScript, Express 5, and MongoDB Atlas, with validated input and JWT auth that only lets users reach their own data. It runs as a container on AWS Lambda, built with Terraform. GitHub Actions runs unit and integration tests on every pull request, and every merge to main deploys automatically. Two CloudWatch alarms email me on errors, each tied to a runbook I’ve tested with a drill.
+
+Next is the React Native app in Expo. That’s the R in MERN, and it ships as version 1.0.
+
+### Deployment trade-offs
+
+- **The database is reachable from the internet.** Atlas M0 has no private networking and Lambda has no fixed outbound IP, so the access list allows `0.0.0.0/0`. What protects it: TLS, a database user limited to one database, and a long random password. Upgrade paths: Lambda in a VPC behind a NAT gateway with an Elastic IP (about $33 a month), or Atlas PrivateLink on a paid tier.
+- **Tokens last 7 days.** The server keeps no session state, so a stolen token works until it expires. Upgrade path: short-lived access tokens plus rotating refresh tokens.
+- **The sign-in rate limit is per Lambda instance.** It counts in memory, keyed on the caller’s real IP (see `api/src/middleware/clientIp.ts`). Upgrade path: a shared store.
+- **Cold starts.** The first request after a quiet period takes about two seconds.
+- **Terraform state is local** for now (`infra/`, gitignored). The S3 backend is a commented block in `infra/versions.tf`.
+
+Runbook: `docs/runbooks/api-errors.md`. Drill write-up: `docs/drills/`.
 
 ## Testing
 

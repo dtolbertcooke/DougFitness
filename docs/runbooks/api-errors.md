@@ -37,13 +37,20 @@ fields @timestamp, req.method, req.url, res.statusCode, responseTime, err.messag
 | limit 50
 ```
 
-If this returns nothing but `dougfitness-api-lambda-errors` fired, the failure happened before Express started. Look at the raw log stream for the newest invocation for a startup error (`ZodError` from config validation, an SSM `AccessDeniedException`, or a Mongo `MongooseServerSelectionError`).
+If this returns nothing but `dougfitness-api-lambda-errors` fired, the failure happened before Express started, so pino never logged a request. Read the raw log instead:
+
+```bash
+aws logs tail /aws/lambda/dougfitness-api --since 15m --format short | grep -E "Error|INIT_REPORT"
+```
+
+A startup failure looks like an `INIT_REPORT … Status: error … Runtime.ExitError` line next to the real error: a `ZodError` from config validation, an SSM `AccessDeniedException`, a `MongoServerError: bad auth`, or a `MongooseServerSelectionError`. The next section says what each means.
 
 ## 3. Common causes
 
 | Symptom in the logs                                | Likely cause                                          | Fix                                                                                           |
 | -------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `MongooseServerSelectionError`, timeouts           | Atlas outage, wrong URI/password, or access list      | Check <https://status.mongodb.com>; Atlas -> Network Access must allow `0.0.0.0/0`; check the user |
+| `MongoServerError: bad auth : authentication failed` (code 8000) | Wrong or rotated password in the URI, or the Atlas user was edited or deleted | Atlas -> Database Access; fix `/dougfitness/prod/MONGODB_URI`, or restore a previous version (step 4) |
+| `MongooseServerSelectionError`, timeouts           | Atlas outage, the access list no longer allows Lambda, or a wrong host | Check <https://status.mongodb.com>; Atlas -> Network Access must allow `0.0.0.0/0` |
 | `ZodError` from `env()` at startup                 | A required parameter is missing or malformed in SSM   | Check `/dougfitness/prod/MONGODB_URI` and `JWT_SECRET` exist and have the right values        |
 | `AccessDeniedException` from SSM                   | IAM role lost its SSM permission                      | `terraform plan` in `infra/` and look for drift on `aws_iam_role_policy.api_ssm`              |
 | 5xx only on one route, with `err.message`          | A code bug                                            | Roll back (step 1), then write a failing test                                                 |
@@ -56,6 +63,15 @@ Warm Lambda instances keep the value they loaded at startup. Force new instances
 aws lambda update-function-configuration --function-name dougfitness-api --description "restart $(date -u +%FT%TZ)"
 aws lambda wait function-updated --function-name dougfitness-api
 ```
+
+SSM keeps every version of a parameter, so a bad change can be undone without remembering the old value. List versions with `aws ssm get-parameter-history --name /dougfitness/prod/MONGODB_URI --query 'Parameters[].[Version,LastModifiedDate]'`, then put an earlier one back (the value never has to be printed):
+
+```bash
+aws ssm put-parameter --name /dougfitness/prod/MONGODB_URI --type SecureString --overwrite \
+  --value "$(aws ssm get-parameter --name '/dougfitness/prod/MONGODB_URI:<version>' --with-decryption --query Parameter.Value --output text)"
+```
+
+Then force new instances as above.
 
 ## 5. Confirm recovery
 
