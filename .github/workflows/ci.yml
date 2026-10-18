@@ -21,3 +21,49 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+
+  # Builds the API image, pushes it to ECR, points Lambda at it, and checks /healthz.
+  # Runs only on pushes to main, and only after every verify job passes. The AWS_DEPLOY_ROLE_ARN
+  # check lets this merge before AWS is set up without turning main red; once the variable exists,
+  # every merge deploys.
+  deploy:
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.AWS_DEPLOY_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    permissions: { id-token: write, contents: read }
+    concurrency: deploy
+    env:
+      AWS_REGION: us-east-1
+      FUNCTION_NAME: dougfitness-api
+      API_URL: ${{ vars.API_URL }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push image
+        run: |
+          IMAGE="${{ steps.ecr.outputs.registry }}/dougfitness-api:${{ github.sha }}"
+          docker build --provenance=false --platform linux/amd64 -t "$IMAGE" api
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+      - name: Deploy
+        run: |
+          # A Lambda image function can't be created until an image exists, so the very first run pushes the
+          # image and stops: Terraform then creates the function from it (`terraform apply -var
+          # initial_image_tag=<sha>`). Only "function not found" is tolerated; any other error fails the job.
+          if OUT=$(aws lambda get-function --function-name "$FUNCTION_NAME" 2>&1); then
+            aws lambda update-function-code --function-name "$FUNCTION_NAME" --image-uri "$IMAGE" > /dev/null
+            aws lambda wait function-updated --function-name "$FUNCTION_NAME"
+          elif grep -q ResourceNotFoundException <<< "$OUT"; then
+            echo "::warning::Lambda function $FUNCTION_NAME does not exist yet. Image pushed as $IMAGE. Create it with: terraform apply -var initial_image_tag=${{ github.sha }}"
+          else
+            echo "$OUT"
+            exit 1
+          fi
+      - name: Smoke test
+        if: env.API_URL != ''
+        run: curl -fsS --retry 3 --retry-delay 5 "${API_URL%/}/healthz"
