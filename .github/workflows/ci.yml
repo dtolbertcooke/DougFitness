@@ -52,7 +52,18 @@ jobs:
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
       - name: Deploy
         run: |
-          aws lambda update-function-code --function-name "$FUNCTION_NAME" --image-uri "$IMAGE" > /dev/null
-          aws lambda wait function-updated --function-name "$FUNCTION_NAME"
+          # A Lambda image function can't be created until an image exists, so the very first run pushes the
+          # image and stops: Terraform then creates the function from it (`terraform apply -var
+          # initial_image_tag=<sha>`). Only "function not found" is tolerated; any other error fails the job.
+          if OUT=$(aws lambda get-function --function-name "$FUNCTION_NAME" 2>&1); then
+            aws lambda update-function-code --function-name "$FUNCTION_NAME" --image-uri "$IMAGE" > /dev/null
+            aws lambda wait function-updated --function-name "$FUNCTION_NAME"
+          elif grep -q ResourceNotFoundException <<< "$OUT"; then
+            echo "::warning::Lambda function $FUNCTION_NAME does not exist yet. Image pushed as $IMAGE. Create it with: terraform apply -var initial_image_tag=${{ github.sha }}"
+          else
+            echo "$OUT"
+            exit 1
+          fi
       - name: Smoke test
+        if: env.API_URL != ''
         run: curl -fsS --retry 3 --retry-delay 5 "${API_URL%/}/healthz"

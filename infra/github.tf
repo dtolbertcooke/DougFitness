@@ -61,7 +61,9 @@ resource "aws_iam_role_policy" "github_deploy" {
           "lambda:GetFunction",
           "lambda:GetFunctionConfiguration", # used by `aws lambda wait function-updated`
         ]
-        Resource = aws_lambda_function.api.arn
+        # Built from the name, not aws_lambda_function.api.arn, so this role can be created before the
+        # function exists. CI pushes the first image, and only then can Terraform create the function.
+        Resource = "arn:aws:lambda:${var.aws_region}:${local.account_id}:function:${local.name}"
       },
     ]
   })
