@@ -101,6 +101,9 @@ resource "aws_lambda_function" "api" {
       NODE_ENV                     = "production"
       SSM_PREFIX                   = local.ssm_prefix
       AWS_LWA_READINESS_CHECK_PATH = "/healthz"
+      # The adapter overwrites x-amzn-request-context with the real caller's address, which the auth rate
+      # limiter keys on. Never set this anywhere a client could forge that header (see clientIp.ts).
+      TRUST_LAMBDA_CONTEXT = "true"
     }
   }
 

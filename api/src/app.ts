@@ -3,7 +3,8 @@ import express from 'express';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import { logger } from './lib/logger';
-import { authRouter } from './modules/auth/auth.routes';
+import { env } from './config/env';
+import { createAuthRouter } from './modules/auth/auth.routes';
 import { meRouter } from './modules/me/me.routes';
 import { programRouter } from './modules/program/program.routes';
 import { progressRouter } from './modules/progress/progress.routes';
@@ -11,14 +12,16 @@ import { sessionsRouter } from './modules/sessions/sessions.routes';
 import { requireAuth } from './middleware/requireAuth';
 import { errorHandler, notFound } from './middleware/errors';
 
-export function buildApp() {
+// trustLambdaContext: read the caller's IP from Lambda Web Adapter's request-context header (rate limiting).
+// Defaults to env TRUST_LAMBDA_CONTEXT, which only the Lambda function sets; tests pass it explicitly.
+export function buildApp({ trustLambdaContext = env().TRUST_LAMBDA_CONTEXT }: { trustLambdaContext?: boolean } = {}) {
   const app = express();
   app.use(helmet());
   app.use(express.json({ limit: '100kb' }));
   app.use(pinoHttp({ logger, redact: ['req.headers.authorization'] }));
 
   app.get('/healthz', (_req, res) => res.json({ status: 'ok' }));
-  app.use('/v1/auth', authRouter); // signup/signin
+  app.use('/v1/auth', createAuthRouter({ trustLambdaContext })); // signup/signin
   app.use('/v1/me', requireAuth, meRouter);
   app.use('/v1/program', requireAuth, programRouter);
   app.use('/v1/sessions', requireAuth, sessionsRouter);
