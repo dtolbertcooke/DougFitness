@@ -44,6 +44,12 @@ jobs:
           aws-region: us-east-1
       - id: ecr
         uses: aws-actions/amazon-ecr-login@v2
+      # The Dockerfile pulls the Lambda Web Adapter from public.ecr.aws. Anonymous pulls from GitHub's shared
+      # runner IPs are throttled (429 "Data limit exceeded") and failed two of the first three deploys.
+      - name: Log in to ECR Public
+        uses: aws-actions/amazon-ecr-login@v2
+        with:
+          registry-type: public
       - name: Build and push image
         run: |
           IMAGE="${{ steps.ecr.outputs.registry }}/dougfitness-api:${{ github.sha }}"

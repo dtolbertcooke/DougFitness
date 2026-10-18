@@ -40,6 +40,14 @@ resource "aws_iam_role_policy" "github_deploy" {
         Resource = "*" # this action does not support resource-level permissions
       },
       {
+        # The Dockerfile copies the Lambda Web Adapter from public.ecr.aws. Anonymous pulls from GitHub's shared
+        # runner IPs get throttled (429), so CI logs in to ECR Public with these. Pulling needs nothing more.
+        Sid      = "EcrPublicLogin"
+        Effect   = "Allow"
+        Action   = ["ecr-public:GetAuthorizationToken", "sts:GetServiceBearerToken"]
+        Resource = "*" # neither action supports resource-level permissions
+      },
+      {
         Sid    = "EcrPushToApiRepo"
         Effect = "Allow"
         Action = [
