@@ -2,16 +2,19 @@
 import { MongoMemoryReplSet } from 'mongodb-memory-server';
 import mongoose from 'mongoose';
 import { afterAll, afterEach, beforeAll } from 'vitest';
+import { MONGO_VERSION } from './mongo-version';
 
-let replset: MongoMemoryReplSet;
+// Undefined until beforeAll succeeds. afterAll still runs when beforeAll throws, and a bare
+// `replset.stop()` there would bury the real startup error under "cannot read properties of undefined".
+let replset: MongoMemoryReplSet | undefined;
 
 beforeAll(async () => {
   replset = await MongoMemoryReplSet.create({
     replSet: { count: 1, storageEngine: 'wiredTiger' }, // transactions work
-    // mongodb-memory-server's latest default binary is built for a newer macOS SDK than some
-    // dev machines run, and aborts at launch with a missing-symbol dyld error. 7.0.x is broadly
-    // compatible; bump it once that stops being true.
-    binary: { version: '7.0.14' },
+    binary: { version: MONGO_VERSION }, // downloaded once by global-setup.ts
+    // Every test file starts its own mongod at the same moment. On a busy or cold machine that can take
+    // longer than the library's 10s default, which fails the whole file with "Instance failed to start".
+    instanceOpts: [{ launchTimeout: 60_000 }],
   });
   await mongoose.connect(replset.getUri());
 });
@@ -23,5 +26,5 @@ afterEach(async () => {
 
 afterAll(async () => {
   await mongoose.disconnect();
-  await replset.stop();
+  await replset?.stop();
 });
