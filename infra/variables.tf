@@ -7,7 +7,18 @@ variable "aws_region" {
 variable "github_repo" {
   description = "GitHub repository allowed to deploy, as owner/name."
   type        = string
-  default     = "dtolbertcooke/DougFitness_v1"
+  default     = "dtolbertcooke/DougFitness"
+}
+
+variable "github_oidc_subject_prefix" {
+  description = <<-EOT
+    The repo part of the OIDC token's `sub` claim. Newer GitHub repos (and any renamed after 2026-07-15) use the
+    immutable form `repo:<owner>@<ownerId>/<repo>@<repoId>`, not `repo:<owner>/<repo>`; the name-based form
+    never matches those tokens. Read the right value from the repo itself:
+      gh api repos/<owner>/<repo>/actions/oidc/customization/sub --jq .sub_claim_prefix
+  EOT
+  type        = string
+  default     = "repo:dtolbertcooke@33268861/DougFitness@1376376235"
 }
 
 variable "initial_image_tag" {
