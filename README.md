@@ -18,7 +18,7 @@ Next is the React Native app in Expo. That’s the R in MERN, and it ships as ve
 - **Tokens last 7 days.** The server keeps no session state, so a stolen token works until it expires. Upgrade path: short-lived access tokens plus rotating refresh tokens.
 - **The sign-in rate limit is per Lambda instance.** It counts in memory, keyed on the caller’s real IP (see `api/src/middleware/clientIp.ts`). Upgrade path: a shared store.
 - **Cold starts.** The first request after a quiet period takes about two seconds.
-- **Terraform state is local** for now (`infra/`, gitignored). The S3 backend is a commented block in `infra/versions.tf`.
+- **Terraform state lives in S3** (private, versioned, encrypted) with S3-native locking (`use_lockfile`), so no DynamoDB table. The bucket is created by hand, because a state bucket can't be managed by the state it holds; the commands are in `infra/versions.tf`. CI doesn't run Terraform, so applies are manual and local.
 
 Runbook: `docs/runbooks/api-errors.md`. Drill write-up: `docs/drills/`.
 
